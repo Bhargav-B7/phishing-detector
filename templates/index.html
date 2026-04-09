@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phishing Detector</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+    h1 { font-size: 2rem; margin-bottom: 8px; color: #38bdf8; }
+    p.sub { color: #94a3b8; margin-bottom: 30px; }
+    .box { background: #1e293b; border-radius: 12px; padding: 30px; width: 100%; max-width: 700px; margin-bottom: 24px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .tab { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #94a3b8; font-size: 0.95rem; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .tab.active { background: #38bdf8; color: #0f172a; font-weight: bold; border-color: #38bdf8; }
+
+    input, textarea { width: 100%; padding: 14px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 1rem; margin-bottom: 12px; font-family: inherit; }
+    textarea { height: 140px; resize: vertical; }
+    .btn-row { display: flex; gap: 10px; }
+    button { flex: 1; padding: 14px; background: #38bdf8; color: #0f172a; font-weight: bold; font-size: 1rem; border: none; border-radius: 8px; cursor: pointer; }
+    button:hover { background: #0ea5e9; }
+    button.danger { background: #ef4444; color: white; flex: 0 0 auto; padding: 14px 18px; }
+    button.danger:hover { background: #dc2626; }
+
+    /* Single result */
+    #result { margin-top: 24px; display: none; }
+    .verdict { font-size: 1.5rem; font-weight: bold; margin-bottom: 8px; }
+    .score-bar-wrap { background: #334155; border-radius: 99px; height: 12px; margin: 12px 0; }
+    .score-bar { height: 12px; border-radius: 99px; transition: width 0.6s ease; }
+    .message { background: #0f172a; border-radius: 8px; padding: 14px; margin: 12px 0; font-size: 0.95rem; }
+    .reasons { list-style: none; padding: 0; }
+    .reasons li { padding: 6px 0; border-bottom: 1px solid #1e293b; font-size: 0.9rem; color: #cbd5e1; }
+    .section-title { font-size: 0.8rem; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin: 16px 0 8px; }
+
+    /* Bulk results */
+    #bulkResult { margin-top: 20px; display: none; }
+    .bulk-summary { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .summary-card { flex: 1; min-width: 100px; background: #0f172a; border-radius: 8px; padding: 12px; text-align: center; }
+    .summary-card .num { font-size: 1.8rem; font-weight: 900; }
+    .summary-card .lbl { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+    .bulk-item { background: #0f172a; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+    .bulk-item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+    .bulk-url { font-size: 0.85rem; color: #94a3b8; word-break: break-all; margin-bottom: 4px; }
+    .bulk-bar-wrap { background: #1e293b; border-radius: 99px; height: 6px; }
+    .bulk-bar { height: 6px; border-radius: 99px; }
+    .bulk-reasons { font-size: 0.8rem; color: #64748b; margin-top: 6px; }
+
+    /* Colors */
+    .red    { color: #f87171; } .bar-red    { background: #f87171; }
+    .orange { color: #fb923c; } .bar-orange { background: #fb923c; }
+    .yellow { color: #facc15; } .bar-yellow { background: #facc15; }
+    .green  { color: #4ade80; } .bar-green  { background: #4ade80; }
+    .gray   { color: #94a3b8; } .bar-gray   { background: #94a3b8; }
+
+    /* Badge */
+    .badge { font-size: 0.7rem; font-weight: bold; padding: 3px 8px; border-radius: 99px; white-space: nowrap; }
+    .badge-red    { background: #7f1d1d; color: #f87171; }
+    .badge-orange { background: #7c2d12; color: #fb923c; }
+    .badge-yellow { background: #713f12; color: #facc15; }
+    .badge-green  { background: #14532d; color: #4ade80; }
+    .badge-gray   { background: #1e293b;  color: #94a3b8; }
+
+    /* Loading */
+    .loading { color: #38bdf8; text-align: center; padding: 20px; }
+    .progress-wrap { background: #334155; border-radius: 99px; height: 8px; margin: 10px 0; }
+    .progress-bar { height: 8px; border-radius: 99px; background: #38bdf8; transition: width 0.3s; }
+
+    /* History */
+    .history-box { background: #1e293b; border-radius: 12px; padding: 24px; width: 100%; max-width: 700px; }
+    .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .history-header h2 { font-size: 1.1rem; color: #94a3b8; }
+    .history-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #0f172a; flex-wrap: wrap; }
+    .history-item:last-child { border-bottom: none; }
+    .history-url { font-size: 0.85rem; color: #cbd5e1; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .history-score { font-size: 0.8rem; color: #64748b; white-space: nowrap; }
+    .history-time { font-size: 0.75rem; color: #475569; white-space: nowrap; }
+    .recheck { font-size: 0.75rem; color: #38bdf8; cursor: pointer; white-space: nowrap; }
+    .recheck:hover { text-decoration: underline; }
+    .report-link { font-size: 0.75rem; color: #a78bfa; white-space: nowrap; text-decoration: none; }
+    .report-link:hover { text-decoration: underline; }
+    .empty-history { text-align: center; color: #475569; padding: 20px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>🛡️ Phishing Detector</h1>
+  <p class="sub">Detect phishing URLs in real-time — single or bulk scan</p>
+
+  <div class="box">
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('single')">🔍 Single URL</div>
+      <div class="tab" onclick="switchTab('bulk')">📁 Bulk Scanner</div>
+    </div>
+
+    <!-- Single URL -->
+    <div id="singleTab">
+      <input type="text" id="urlInput" placeholder="https://example.com" />
+      <div class="btn-row">
+        <button onclick="analyze()">🔍 Analyze URL</button>
+      </div>
+      <div id="result"></div>
+    </div>
+
+    <!-- Bulk Scanner -->
+    <div id="bulkTab" style="display:none;">
+      <textarea id="bulkInput" placeholder="Paste up to 10 URLs, one per line:&#10;https://google.com&#10;http://paypal-login.fake.com&#10;https://github.com"></textarea>
+      <div class="btn-row">
+        <button onclick="bulkAnalyze()">📁 Scan All URLs</button>
+      </div>
+      <div id="bulkResult"></div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="history-box">
+    <div class="history-header">
+      <h2>📋 Scan History</h2>
+      <button class="danger" onclick="clearHistory()">🗑️ Clear</button>
+    </div>
+    <div id="historyList"><p class="empty-history">No scans yet.</p></div>
+  </div>
+
+  <script>
+    // ── Tab switching ────────────────────────────────────────────
+    function switchTab(tab) {
+      document.getElementById('singleTab').style.display = tab === 'single' ? 'block' : 'none';
+      document.getElementById('bulkTab').style.display   = tab === 'bulk'   ? 'block' : 'none';
+      document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', (tab === 'single' && i === 0) || (tab === 'bulk' && i === 1));
+      });
+    }
+
+    // ── Single URL analyze ───────────────────────────────────────
+    async function analyze(prefillUrl = null) {
+      const input = document.getElementById('urlInput');
+      if (prefillUrl) { input.value = prefillUrl; switchTab('single'); }
+      const url = input.value.trim();
+      if (!url) return alert('Please enter a URL');
+
+      const resultDiv = document.getElementById('result');
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = '<p class="loading">🔍 Analyzing... please wait</p>';
+
+      const res = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      const color = data.color || 'gray';
+      const score = data.score || 0;
+      const reasons = (data.reasons || []).map(r => `<li>${r}</li>`).join('');
+
+      resultDiv.innerHTML = `
+        <div class="verdict ${color}">${data.verdict}</div>
+        <div class="score-bar-wrap"><div class="score-bar bar-${color}" style="width:${score}%"></div></div>
+        <small style="color:#64748b">Risk Score: ${score}/100</small>
+        <div class="message">${data.message}</div>
+        ${reasons ? `<p class="section-title">Why we flagged this:</p><ul class="reasons">${reasons}</ul>` : ''}
+      `;
+      loadHistory();
+    }
+
+    // ── Bulk analyze ─────────────────────────────────────────────
+    async function bulkAnalyze() {
+      const raw = document.getElementById('bulkInput').value.trim();
+      if (!raw) return alert('Please enter at least one URL');
+
+      const urls = raw.split('\n').map(u => u.trim()).filter(Boolean).slice(0, 10);
+      const resultDiv = document.getElementById('bulkResult');
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `
+        <p class="loading">🔍 Scanning ${urls.length} URLs... this may take 20-40 seconds</p>
+        <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+      `;
+
+      // Animate progress bar while waiting
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress = Math.min(progress + (100 / (urls.length * 8)), 90);
+        const bar = document.getElementById('progressBar');
+        if (bar) bar.style.width = progress + '%';
+      }, 500);
+
+      const res = await fetch('/bulk-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls })
+      });
+      const results = await res.json();
+      clearInterval(interval);
+
+      // Summary counts
+      const counts = { green: 0, yellow: 0, orange: 0, red: 0, gray: 0 };
+      results.forEach(r => counts[r.color] = (counts[r.color] || 0) + 1);
+
+      const safe      = counts.green || 0;
+      const suspicious = (counts.yellow || 0) + (counts.orange || 0);
+      const dangerous  = counts.red || 0;
+      const notUrl     = counts.gray || 0;
+
+      resultDiv.innerHTML = `
+        <div class="bulk-summary">
+          <div class="summary-card"><div class="num green">${safe}</div><div class="lbl">Safe</div></div>
+          <div class="summary-card"><div class="num orange">${suspicious}</div><div class="lbl">Suspicious</div></div>
+          <div class="summary-card"><div class="num red">${dangerous}</div><div class="lbl">Dangerous</div></div>
+          ${notUrl ? `<div class="summary-card"><div class="num gray">${notUrl}</div><div class="lbl">Not a URL</div></div>` : ''}
+        </div>
+        ${results.map(r => `
+          <div class="bulk-item">
+            <div class="bulk-item-header">
+              <span class="badge badge-${r.color}">${r.verdict}</span>
+              <span class="bulk-score ${r.color}">${r.score}/100</span>
+            </div>
+            <div class="bulk-url">${r.url}</div>
+            <div class="bulk-bar-wrap">
+              <div class="bulk-bar bar-${r.color}" style="width:${r.score}%"></div>
+            </div>
+            ${r.reasons && r.reasons.length > 0
+              ? `<div class="bulk-reasons">${r.reasons.slice(0,2).join(' · ')}</div>`
+              : '<div class="bulk-reasons" style="color:#4ade80">✅ No threats detected</div>'}
+          </div>
+        `).join('')}
+      `;
+      loadHistory();
+    }
+
+    // ── History ──────────────────────────────────────────────────
+    async function loadHistory() {
+      const res = await fetch('/history');
+      const scans = await res.json();
+      const container = document.getElementById('historyList');
+      if (scans.length === 0) {
+        container.innerHTML = '<p class="empty-history">No scans yet. Analyze a URL to get started.</p>';
+        return;
+      }
+      container.innerHTML = scans.map(s => `
+        <div class="history-item">
+          <span class="badge badge-${s.color}">${s.verdict}</span>
+          <span class="history-url" title="${s.url}">${s.url}</span>
+          <span class="history-score">${s.score}/100</span>
+          <span class="history-time">${s.scanned_at.slice(0,16)}</span>
+          <span class="recheck" onclick="analyze('${s.url.replace(/'/g, "\\'")}')">↩ Re-check</span>
+          <a class="report-link" href="/report/${s.id}" target="_blank">📊 Report</a>
+        </div>
+      `).join('');
+    }
+
+    async function clearHistory() {
+      if (!confirm('Clear all scan history?')) return;
+      await fetch('/clear-history', { method: 'POST' });
+      loadHistory();
+    }
+
+    document.getElementById('urlInput').addEventListener('keypress', e => {
+      if (e.key === 'Enter') analyze();
+    });
+
+    loadHistory();
+  </script>
+</body>
+</html>

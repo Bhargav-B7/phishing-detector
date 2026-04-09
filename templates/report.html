@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scan Report</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; }
+    .container { width: 100%; max-width: 780px; }
+    a.back { color: #38bdf8; text-decoration: none; font-size: 0.9rem; display: inline-block; margin-bottom: 20px; }
+    a.back:hover { text-decoration: underline; }
+    h1 { font-size: 1.6rem; color: #38bdf8; margin-bottom: 4px; }
+    .url-label { color: #64748b; font-size: 0.85rem; word-break: break-all; margin-bottom: 24px; }
+
+    /* Verdict banner */
+    .banner { border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
+    .banner-red    { background: #7f1d1d; border: 1px solid #f87171; }
+    .banner-orange { background: #7c2d12; border: 1px solid #fb923c; }
+    .banner-yellow { background: #713f12; border: 1px solid #facc15; }
+    .banner-green  { background: #14532d; border: 1px solid #4ade80; }
+    .banner-score  { font-size: 2.5rem; font-weight: 900; }
+    .red    { color: #f87171; } .orange { color: #fb923c; }
+    .yellow { color: #facc15; } .green  { color: #4ade80; }
+    .banner-info h2 { font-size: 1.3rem; }
+    .banner-info p  { font-size: 0.9rem; color: #cbd5e1; margin-top: 4px; }
+
+    /* Score bar */
+    .score-bar-wrap { background: #1e293b; border-radius: 99px; height: 10px; margin: 16px 0 4px; }
+    .score-bar { height: 10px; border-radius: 99px; }
+    .bar-red    { background: #f87171; } .bar-orange { background: #fb923c; }
+    .bar-yellow { background: #facc15; } .bar-green  { background: #4ade80; }
+
+    /* Cards */
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media(max-width:600px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: #1e293b; border-radius: 10px; padding: 18px; }
+    .card h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; }
+    .row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #0f172a; font-size: 0.88rem; }
+    .row:last-child { border-bottom: none; }
+    .row .label { color: #94a3b8; }
+    .row .val   { color: #e2e8f0; text-align: right; max-width: 60%; word-break: break-all; }
+    .ok   { color: #4ade80; }
+    .bad  { color: #f87171; }
+    .warn { color: #facc15; }
+
+    /* Reasons */
+    .reasons-card { background: #1e293b; border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+    .reasons-card h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 12px; }
+    .reasons-card ul { list-style: none; }
+    .reasons-card li { padding: 7px 0; border-bottom: 1px solid #0f172a; font-size: 0.9rem; color: #cbd5e1; }
+    .reasons-card li:last-child { border-bottom: none; }
+    .no-reasons { color: #4ade80; font-size: 0.9rem; }
+
+    .scanned-at { text-align: center; color: #475569; font-size: 0.8rem; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <a class="back" href="/">← Back to Scanner</a>
+  <h1>📊 Scan Report</h1>
+  <p class="url-label">{{ scan.url }}</p>
+
+  <!-- Verdict Banner -->
+  {% set c = scan.color %}
+  <div class="banner banner-{{ c }}">
+    <div class="banner-score {{ c }}">{{ scan.score }}</div>
+    <div class="banner-info">
+      <h2 class="{{ c }}">{{ scan.verdict }}</h2>
+      <p>Risk score out of 100</p>
+      <div class="score-bar-wrap">
+        <div class="score-bar bar-{{ c }}" style="width:{{ scan.score }}%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Why flagged -->
+  <div class="reasons-card">
+    <h3>🚩 Detection Reasons</h3>
+    {% if scan.reasons %}
+      <ul>
+        {% for r in scan.reasons %}<li>{{ r }}</li>{% endfor %}
+      </ul>
+    {% else %}
+      <p class="no-reasons">✅ No suspicious signals detected.</p>
+    {% endif %}
+  </div>
+
+  <!-- Detail Cards -->
+  {% set d = scan.details %}
+  {% set f = d.get('features', {}) %}
+  {% set ssl = d.get('ssl', {}) %}
+  {% set w = d.get('whois', {}) %}
+  {% set dns = d.get('dns', {}) %}
+  {% set gsb = d.get('google_safe_browsing', {}) %}
+  {% set vt  = d.get('virustotal', {}) %}
+
+  <div class="grid">
+
+    <!-- URL Analysis -->
+    <div class="card">
+      <h3>🔗 URL Analysis</h3>
+      <div class="row"><span class="label">Length</span><span class="val {% if f.get('url_length_suspicious') %}warn{% else %}ok{% endif %}">{{ f.get('url_length', '—') }} chars</span></div>
+      <div class="row"><span class="label">Scheme</span><span class="val {% if f.get('scheme')=='https' %}ok{% else %}warn{% endif %}">{{ f.get('scheme', '—') }}</span></div>
+      <div class="row"><span class="label">Has IP address</span><span class="val {% if f.get('has_ip_address') %}bad{% else %}ok{% endif %}">{{ 'Yes ⚠️' if f.get('has_ip_address') else 'No ✅' }}</span></div>
+      <div class="row"><span class="label">Has @ symbol</span><span class="val {% if f.get('has_at_symbol') %}bad{% else %}ok{% endif %}">{{ 'Yes ⚠️' if f.get('has_at_symbol') else 'No ✅' }}</span></div>
+      <div class="row"><span class="label">Hyphens in domain</span><span class="val {% if f.get('hyphen_count', 0) >= 3 %}warn{% else %}ok{% endif %}">{{ f.get('hyphen_count', 0) }}</span></div>
+      <div class="row"><span class="label">Subdomain depth</span><span class="val {% if f.get('subdomain_depth', 0) >= 3 %}warn{% else %}ok{% endif %}">{{ f.get('subdomain_depth', 0) }}</span></div>
+      <div class="row"><span class="label">Suspicious keywords</span><span class="val {% if f.get('keyword_count', 0) > 0 %}warn{% else %}ok{% endif %}">{{ f.get('suspicious_keywords', [])|join(', ') or 'None ✅' }}</span></div>
+    </div>
+
+    <!-- SSL Certificate -->
+    <div class="card">
+      <h3>🔐 SSL Certificate</h3>
+      <div class="row"><span class="label">Valid</span><span class="val {% if ssl.get('valid') %}ok{% else %}bad{% endif %}">{{ '✅ Yes' if ssl.get('valid') else '❌ No' }}</span></div>
+      <div class="row"><span class="label">Days left</span>
+        <span class="val {% if ssl.get('days_left') and ssl.days_left > 30 %}ok{% elif ssl.get('days_left') %}warn{% else %}bad{% endif %}">
+          {{ ssl.get('days_left', '—') }}
+        </span>
+      </div>
+      <div class="row"><span class="label">Error</span><span class="val">{{ ssl.get('error') or '—' }}</span></div>
+    </div>
+
+    <!-- WHOIS / Domain Age -->
+    <div class="card">
+      <h3>📅 Domain Age (WHOIS)</h3>
+      <div class="row"><span class="label">Age (days)</span>
+        <span class="val {% if w.get('age_days') and w.age_days > 180 %}ok{% elif w.get('age_days') %}warn{% else %}bad{% endif %}">
+          {{ w.get('age_days', '—') }}
+        </span>
+      </div>
+      <div class="row"><span class="label">Error</span><span class="val">{{ w.get('error') or '—' }}</span></div>
+    </div>
+
+    <!-- DNS -->
+    <div class="card">
+      <h3>🌐 DNS Resolution</h3>
+      <div class="row"><span class="label">Resolves</span><span class="val {% if dns.get('resolves') %}ok{% else %}bad{% endif %}">{{ '✅ Yes' if dns.get('resolves') else '❌ No' }}</span></div>
+      <div class="row"><span class="label">IP addresses</span><span class="val">{{ dns.get('ips', [])|join(', ') or '—' }}</span></div>
+    </div>
+
+    <!-- Google Safe Browsing -->
+    <div class="card">
+      <h3>🛡️ Google Safe Browsing</h3>
+      <div class="row"><span class="label">Safe</span>
+        <span class="val {% if gsb.get('safe') == true %}ok{% elif gsb.get('safe') == false %}bad{% else %}warn{% endif %}">
+          {{ '✅ Safe' if gsb.get('safe') == true else ('🚨 Threat!' if gsb.get('safe') == false else '— No key') }}
+        </span>
+      </div>
+      <div class="row"><span class="label">Error</span><span class="val">{{ gsb.get('error') or '—' }}</span></div>
+    </div>
+
+    <!-- VirusTotal -->
+    <div class="card">
+      <h3>🦠 VirusTotal</h3>
+      <div class="row"><span class="label">Malicious engines</span><span class="val {% if vt.get('malicious', 0) > 0 %}bad{% else %}ok{% endif %}">{{ vt.get('malicious', '—') }}</span></div>
+      <div class="row"><span class="label">Suspicious engines</span><span class="val {% if vt.get('suspicious', 0) > 0 %}warn{% else %}ok{% endif %}">{{ vt.get('suspicious', '—') }}</span></div>
+      <div class="row"><span class="label">Harmless engines</span><span class="val ok">{{ vt.get('harmless', '—') }}</span></div>
+      <div class="row"><span class="label">Error</span><span class="val">{{ vt.get('error') or '—' }}</span></div>
+    </div>
+
+  </div>
+
+  <p class="scanned-at">Scanned at {{ scan.scanned_at }}</p>
+
+</div>
+</body>
+</html>
