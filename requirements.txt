@@ -5,7 +5,7 @@ python-whois==0.9.6
 dnspython==2.8.0
 scikit-learn==1.5.2
 pandas==2.2.2
-numpy==2.1.0
+numpy==1.26.4
 urllib3==2.5.0
 tldextract==5.3.0
 gunicorn==21.2.0
